@@ -103,14 +103,6 @@ class KeycloakAdmin(KAdmin):
         )
         return raise_error_from_response(data_raw, KeycloakGetError, expected_codes=[201])
 
-    def create_resource_permission(self, client_id, payload, skip_exists=False):
-        params_path = {"realm-name": self.realm_name, "id": client_id}
-        data_raw = self.raw_post(
-            URL_ADMIN_RESOURCE_PERMISSION.format(**params_path),
-            data=json.dumps(payload),
-        )
-        return raise_error_from_response(data_raw, KeycloakGetError, expected_codes=[201], skip_exists=skip_exists)
-
     def delete_permission(self, client_id, permission_id):
         params_path = {"realm-name": self.realm_name, "id": client_id}
         data_raw = self.raw_delete(URL_ADMIN_PERMISSION.format(**params_path) + f"/{permission_id}")
@@ -157,11 +149,6 @@ class KeycloakAdmin(KAdmin):
             data_raw = None
         return data_raw
 
-    def get_client_resource_scopes(self, client_id):
-        params_path = {"realm-name": self.realm_name, "id": client_id}
-        data_raw = self.raw_get(URL_ADMIN_CLIENT_RESOURCE_SCOPE.format(**params_path))
-        return raise_error_from_response(data_raw, KeycloakGetError)
-
     def get_client_resource_scope_id(self, client_id, scope_name):
         params_path = {"realm-name": self.realm_name, "id": client_id}
         data_raw = self.raw_get(
@@ -173,11 +160,6 @@ class KeycloakAdmin(KAdmin):
         else:
             data_raw = None
         return data_raw
-
-    def get_client_resources(self, client_id):
-        params_path = {"realm-name": self.realm_name, "id": client_id}
-        data_raw = self.raw_get(URL_ADMIN_CLIENT_RESOURCE.format(**params_path))
-        return raise_error_from_response(data_raw, KeycloakGetError)
 
     def get_client_resource_id(self, client_id, resource_name):
         params_path = {"realm-name": self.realm_name, "id": client_id}
@@ -224,7 +206,7 @@ class KeycloakAdmin(KAdmin):
             data_raw = None
         return data_raw
 
-    def get_client_roles(self, client_id, name, max=20, first=0, limit=True):
+    def get_client_roles_by_name(self, client_id, name, max=20, first=0, limit=True):
         params_path = {"realm-name": self.realm_name, "id": client_id}
         query = f"?first={first}&max={max}&search={name}" if limit else f"?search={name}"
         data_raw = self.raw_get(URL_ADMIN_CLIENT_ROLES.format(**params_path) + query)
