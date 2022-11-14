@@ -3,3 +3,4 @@ venv/
 .vscode/
 keycloak_test_logs.txt
 .env
+keycloak_extend.egg-info
