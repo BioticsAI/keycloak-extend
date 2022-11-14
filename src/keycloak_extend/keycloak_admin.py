@@ -37,27 +37,22 @@ class KeycloakAdmin(KAdmin):
     ):
         auto_refresh_token = ["get", "put", "post", "delete"]
         super().__init__(
-            server_url,
-            username,
-            password,
-            realm_name,
-            client_id,
-            verify,
-            client_secret_key,
-            custom_headers,
-            user_realm_name,
-            auto_refresh_token,
+            server_url=server_url,
+            username=username,
+            password=password,
+            realm_name=realm_name,
+            client_id=client_id,
+            verify=verify,
+            client_secret_key=client_secret_key,
+            custom_headers=custom_headers,
+            user_realm_name=user_realm_name,
+            auto_refresh_token=auto_refresh_token,
         )
 
     def update_client_auth_settings(self, client_id, payload):
         params_path = {"realm-name": self.realm_name, "id": client_id}
         data_raw = self.raw_put(URL_ADMIN_CLIENT_SETTINGS.format(**params_path), data=json.dumps(payload))
         return raise_error_from_response(data_raw, KeycloakGetError, expected_codes=[204])
-
-    def create_client_resource(self, client_id, payload, skip_exists=False):
-        params_path = {"realm-name": self.realm_name, "id": client_id}
-        data_raw = self.raw_post(URL_ADMIN_CLIENT_RESOURCE.format(**params_path), data=json.dumps(payload))
-        return raise_error_from_response(data_raw, KeycloakGetError, expected_codes=[201], skip_exists=skip_exists)
 
     def update_client_resource(self, client_id, resource_id, payload, skip_exists=False):
         params_path = {"realm-name": self.realm_name, "id": client_id}
@@ -248,7 +243,7 @@ class KeycloakAdmin(KAdmin):
     def create_client_role_payload(self, name):
         return {"name": name}
 
-    def create_role_policy_payload(self, name, role_id):
+    def create_affirmative_positive_role_policy_payload(self, name, role_id):
         return {
             "type": "role",
             "decisionStrategy": "AFFIRMATIVE",
@@ -257,7 +252,7 @@ class KeycloakAdmin(KAdmin):
             "roles": [{"id": role_id, "required": True}],
         }
 
-    def create_user_policy_payload(self, name, user_id):
+    def create_affirmative_positive_user_policy_payload(self, name, user_id):
         return {
             "type": "user",
             "decisionStrategy": "AFFIRMATIVE",
@@ -272,7 +267,7 @@ class KeycloakAdmin(KAdmin):
     def create_resource_scope_payload(self, name):
         return {"name": name}
 
-    def create_scope_permission_payload(self, name, resources=[], scopes=[], policies=[]):
+    def create_affirmative_positive_scope_permission_payload(self, name, resources=[], scopes=[], policies=[]):
         policies = [policy for policy in policies if policy is not None]
         return {
             "type": "scope",
