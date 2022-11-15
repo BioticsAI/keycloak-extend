@@ -4,6 +4,8 @@ docker run -d --name keycloak_extend_test -p 8180:8180 -e KEYCLOAK_ADMIN=admin -
 pip install pip --upgrade
 pip install virtualenv
 python -m venv venv
+chmod +x ./venv/bin/activate
+./venv/bin/activate
 pip install -r  requirements.txt
 python setup.py build
 python setup.py install
