@@ -4,3 +4,6 @@ venv/
 keycloak_test_logs.txt
 .env
 keycloak_extend.egg-info
+.coverage
+code-coverage.xml
+
