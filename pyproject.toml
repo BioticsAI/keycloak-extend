@@ -1,6 +1,13 @@
-[tool.black]
-line-length = 120
-
+[tool.poetry]
+name = "keycloak_extend"
+version = "0.0.1"
+description = "Python keycloak extension for python-keycloak package."
+license = "MIT"
+readme = "README.md"
+keywords = [ "keycloak", "openid", "oidc" ]
+authors = [
+    "BioticsAI",
+]
 packages = [
     { include = "keycloak_extend", from = "src/" },
     { include = "keycloak_extend/**/*.py", from = "src/" },
@@ -55,3 +62,6 @@ docs = [
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
