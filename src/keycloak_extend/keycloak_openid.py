@@ -1,6 +1,7 @@
-from keycloak.exceptions import KeycloakGetError, raise_error_from_response
+from keycloak.exceptions import KeycloakPostError, raise_error_from_response
 from keycloak.urls_patterns import URL_TOKEN
 from keycloak import KeycloakOpenID as KOpenID
+from keycloak.uma_permissions import build_permission_param
 
 
 class KeycloakOpenID(KOpenID):
@@ -26,26 +27,19 @@ class KeycloakOpenID(KOpenID):
 
     def get_rpt(
         self,
-        audience="",
-        grant_type="urn:ietf:params:oauth:grant-type:uma-ticket",
         permission="",
         token="",
-        response_mode="",
-        **extra,
     ):
-        if token:
-            self.connection.add_param_headers("Authorization", token)
+        permission = build_permission_param(permission)
+
         params_path = {"realm-name": self.realm_name}
         payload = {
-            "audience": audience,
+            "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
             "permission": permission,
-            "response_mode": response_mode,
-            "client_id": self.client_id,
-            "grant_type": grant_type,
+            "response_mode": "decision",
+            "audience": self.client_id,
         }
-        if extra:
-            payload.update(extra)
 
-        payload = self._add_secret_key(payload)
+        self.connection.add_param_headers("Authorization", "Bearer " + token)
         data_raw = self.connection.raw_post(URL_TOKEN.format(**params_path), data=payload)
-        return raise_error_from_response(data_raw, KeycloakGetError)
+        return raise_error_from_response(data_raw, KeycloakPostError)
