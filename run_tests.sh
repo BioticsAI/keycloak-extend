@@ -7,7 +7,7 @@ python -m venv venv
 chmod +x ./venv/bin/activate
 ./venv/bin/activate
 pip install -r  requirements.txt
-pip install -e .
+pip install .
 ./wait-for-it.sh localhost:8180 -t 60
 coverage run -m pytest -s tests
 coverage report -m
