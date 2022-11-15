@@ -13,7 +13,6 @@ exceptiongroup==1.0.0
 filelock==3.8.0
 idna==3.4
 iniconfig==1.1.1
--e git+ssh://git@github.com/BioticsAI/keycloak-extend.git@eda07f8978d3670182882739c2efb6c259991696#egg=keycloak_extend
 mypy-extensions==0.4.3
 packaging==21.3
 pathspec==0.10.1
