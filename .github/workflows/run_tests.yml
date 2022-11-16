@@ -29,7 +29,7 @@ jobs:
       env:
         KEYCLOAK_ADMIN : admin 
         KEYCLOAK_ADMIN_PASSWORD : admin 
-        KEYCLOAK_HOST : keycloak 
+        KEYCLOAK_HOST : localhost 
         KEYCLOAK_PORT : 8080
       run:  ./run_tests.sh
 
