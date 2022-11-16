@@ -16,6 +16,7 @@ jobs:
           KEYCLOAK_ADMIN_PASSWORD : admin 
           KEYCLOAK_HOST : localhost 
           KEYCLOAK_PORT : 8180
+        options: --name keycloak --hostname keycloak
         ports:
           - 8180:8180
     name: CI Build
