@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 docker ps
+sleep 10
+docker logs keycloak
 pip install pip --upgrade
 pip install -r  requirements.txt
 pip install .
