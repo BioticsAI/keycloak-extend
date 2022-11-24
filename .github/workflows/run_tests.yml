@@ -8,18 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # services:
-    #   keycloak:
-    #     image: quay.io/keycloak/keycloak:latest
-    #     env:
-    #       KEYCLOAK_ADMIN : admin 
-    #       KEYCLOAK_ADMIN_PASSWORD : admin 
-    #       KEYCLOAK_HOST : localhost 
-    #       KEYCLOAK_PORT : 8080
-    #     options: --name keycloak --hostname keycloak
-    #     ports:
-    #       - 8080:8080
-    #     command: start-dev
     name: CI Build
     steps:
     - name: Checkout
