@@ -19,6 +19,7 @@ jobs:
         options: --name keycloak --hostname keycloak
         ports:
           - 8080:8080
+        command: start-dev
     name: CI Build
     steps:
     - name: Checkout
