@@ -137,6 +137,7 @@ def env():
     return KeycloakTestEnv()
 
 
+
 @pytest.fixture
 def admin(env: KeycloakTestEnv):
     """Fixture for initialized KeycloakAdmin class.
