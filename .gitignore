@@ -7,3 +7,4 @@ keycloak_extend.egg-info
 dist
 .coverage
 code-coverage.xml
+.pytest_cache

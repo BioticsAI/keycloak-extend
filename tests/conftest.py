@@ -1,16 +1,9 @@
 """Fixtures for tests."""
 
-import ipaddress
 import os
 import uuid
-from datetime import datetime, timedelta
 
 import pytest
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
 
 from keycloak_extend import KeycloakAdmin, KeycloakOpenID
 from dotenv import load_dotenv
