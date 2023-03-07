@@ -1,0 +1,23 @@
+name: Tests Run 
+
+on:
+
+  pull_request:
+    branches: [ master, dev ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: CI Build
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+  
+    - name: Run tests and collect coverage
+      env:
+        KEYCLOAK_ADMIN : admin 
+        KEYCLOAK_ADMIN_PASSWORD : admin 
+        KEYCLOAK_HOST : localhost 
+        KEYCLOAK_PORT : 8080
+      run:  ./run_tests.sh
