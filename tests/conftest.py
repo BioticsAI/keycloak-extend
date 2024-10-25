@@ -26,10 +26,10 @@ class KeycloakTestEnv(object):
 
     def __init__(
         self,
-        host: str = os.environ["KEYCLOAK_HOST"],
-        port: str = os.environ["KEYCLOAK_PORT"],
-        username: str = os.environ["KEYCLOAK_ADMIN"],
-        password: str = os.environ["KEYCLOAK_ADMIN_PASSWORD"],
+        host: str = os.environ.get("KEYCLOAK_HOST", ""),
+        port: str = os.environ.get("KEYCLOAK_PORT", "8080"),
+        username: str = os.environ.get("KEYCLOAK_ADMIN", ""),
+        password: str = os.environ.get("KEYCLOAK_ADMIN_PASSWORD", ""),
     ):
         """Init method.
 
@@ -161,7 +161,7 @@ def oid(env: KeycloakTestEnv, realm: str, admin: KeycloakAdmin):
     :rtype: KeycloakOpenID
     """
     # Set the realm
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     # Create client
     client = str(uuid.uuid4())
     client_id = admin.create_client(
@@ -197,7 +197,7 @@ def oid_with_credentials(env: KeycloakTestEnv, realm: str, admin: KeycloakAdmin)
     :rtype: Tuple[KeycloakOpenID, str, str]
     """
     # Set the realm
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     # Create client
     client = str(uuid.uuid4())
     secret = str(uuid.uuid4())
@@ -254,7 +254,7 @@ def oid_with_credentials_authz(env: KeycloakTestEnv, realm: str, admin: Keycloak
     :rtype: Tuple[KeycloakOpenID, str, str]
     """
     # Set the realm
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     # Create client
     client = str(uuid.uuid4())
     secret = str(uuid.uuid4())
@@ -285,6 +285,8 @@ def oid_with_credentials_authz(env: KeycloakTestEnv, realm: str, admin: Keycloak
         payload={
             "username": username,
             "email": f"{username}@test.test",
+            "firstName": username,
+            "lastName": username,
             "enabled": True,
             "credentials": [{"type": "password", "value": password}],
         }
@@ -332,7 +334,7 @@ def user(admin: KeycloakAdmin, realm: str) -> str:
     :yields: Keycloak user
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     username = str(uuid.uuid4())
     user_id = admin.create_user(payload={"username": username, "email": f"{username}@test.test"})
     yield user_id
@@ -350,7 +352,7 @@ def group(admin: KeycloakAdmin, realm: str) -> str:
     :yields: Keycloak group
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     group_name = str(uuid.uuid4())
     group_id = admin.create_group(payload={"name": group_name})
     yield group_id
@@ -368,7 +370,7 @@ def client(admin: KeycloakAdmin, realm: str) -> str:
     :yields: Keycloak client id
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     client = str(uuid.uuid4())
     client_id = admin.create_client(payload={"name": client, "clientId": client})
     yield client_id
@@ -386,7 +388,7 @@ def authz_client(admin: KeycloakAdmin, realm: str) -> str:
     :yields: Keycloak client id
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     client = str(uuid.uuid4())
     client_id = admin.create_client(payload={"name": client, "clientId": client})
     admin.update_client(
@@ -426,7 +428,7 @@ def client_role(admin: KeycloakAdmin, realm: str, authz_client: str) -> str:
     :yields: Keycloak client role
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     role = str(uuid.uuid4())
     created_role = admin.create_client_role(authz_client, {"name": role, "composite": False})
     role_id = admin.get_client_role_id(client_id=authz_client, role_name=created_role)
@@ -447,7 +449,7 @@ def authz_resource(admin: KeycloakAdmin, realm: str, authz_client: str) -> str:
     :yields: Keycloak authz resource
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     resource = str(uuid.uuid4())
     res = admin.create_client_authz_resource(client_id=authz_client, payload=admin.create_resource_payload(name=resource))
     resource_id = res['_id']
@@ -467,7 +469,7 @@ def authz_scope(admin: KeycloakAdmin, realm: str, authz_client: str) -> str:
     :yields: Keycloak authz scope
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     scope = str(uuid.uuid4())
     res = admin.create_client_resource_scope(
         client_id=authz_client, payload=admin.create_resource_scope_payload(name=scope)
@@ -491,7 +493,7 @@ def authz_policy(admin: KeycloakAdmin, realm: str, authz_client: str, user: str)
     :yields: Keycloak authz policy
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     res = admin.create_user_policy(
         client_id=authz_client,
@@ -518,7 +520,7 @@ def authz_scope_permission(admin: KeycloakAdmin, realm: str, authz_client: str, 
     :yields: Keycloak authz policy
     :rtype: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     permission = str(uuid.uuid4())
     res = admin.create_scope_permission(
         client_id=authz_client,

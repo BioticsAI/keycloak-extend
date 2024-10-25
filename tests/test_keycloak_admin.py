@@ -11,7 +11,7 @@ def test_update_client_auth_settings(admin: KeycloakAdmin, realm: str, authz_cli
     :param authz_client: Keycloak client with authorization enabled
     :type authz_client: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     res = admin.update_client_auth_settings(
         client_id=authz_client,
         payload={
@@ -35,7 +35,7 @@ def test_update_client_resource(admin: KeycloakAdmin, realm: str, authz_client: 
     :param authz_resource: Keycloak authz resource
     :type authz_resource: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     resource = str(uuid.uuid4())
     res = admin.update_client_resource(
         client_id=authz_client, resource_id=authz_resource, payload=admin.create_resource_payload(name=resource)
@@ -54,7 +54,7 @@ def test_delete_client_resource(admin: KeycloakAdmin, realm: str, authz_client: 
     :param authz_resource: Keycloak authz resource
     :type authz_resource: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     res = admin.delete_client_resource(client_id=authz_client, resource_id=authz_resource)
     assert res == {}
 
@@ -68,7 +68,7 @@ def test_create_client_resource_scope(admin: KeycloakAdmin, realm: str, authz_cl
     :param authz_client: Keycloak client with authorization enabled
     :type authz_client: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     scope = str(uuid.uuid4())
     res = admin.create_client_resource_scope(
         client_id=authz_client, payload=admin.create_resource_scope_payload(name=scope)
@@ -89,7 +89,7 @@ def test_create_client_role_policy(admin: KeycloakAdmin, realm: str, authz_clien
     :param client_role: Keycloak client role id
     :type client_role: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     res = admin.create_client_role_policy(
         client_id=authz_client,
@@ -116,7 +116,7 @@ def test_create_user_policy(admin: KeycloakAdmin, realm: str, authz_client: str,
     :param user: Keycloak user
     :type user: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     res = admin.create_user_policy(
         client_id=authz_client,
@@ -143,7 +143,7 @@ def test_delete_policy(admin: KeycloakAdmin, realm: str, authz_client: str, auth
     :param authz_policy: Keycloak policy
     :type authz_policy: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     res = admin.delete_policy(client_id=authz_client, policy_id=authz_policy)
     assert res == {}
 
@@ -163,7 +163,7 @@ def test_create_scope_permission(
     :param authz_policy: Keycloak policy
     :type authz_policy: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     permission = str(uuid.uuid4())
     res = admin.create_scope_permission(
         client_id=authz_client,
@@ -207,7 +207,7 @@ def test_update_scope_permission(
     :param authz_scope_permission: Keycloak authz scope permission
     :type authz_scope_permission: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     permission = str(uuid.uuid4())
     res = admin.update_scope_permission(
         client_id=authz_client,
@@ -237,7 +237,7 @@ def test_delete_permission(
     :param authz_scope_permission: Keycloak authz scope permission
     :type authz_scope_permission: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     res = admin.delete_permission(
         client_id=authz_client,
         permission_id=authz_scope_permission,
@@ -256,7 +256,7 @@ def test_get_policies_by_name(admin: KeycloakAdmin, realm: str, authz_client: st
     :param user: Keycloak user
     :type user: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     created_policy = admin.create_user_policy(
         client_id=authz_client,
@@ -286,7 +286,7 @@ def test_get_user_policies(admin: KeycloakAdmin, realm: str, authz_client: str, 
     :param user: Keycloak user
     :type user: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     created_policy = admin.create_user_policy(
         client_id=authz_client,
@@ -315,7 +315,7 @@ def test_get_user_policy_id(admin: KeycloakAdmin, realm: str, authz_client: str,
     :param user: Keycloak user
     :type user: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     created_policy = admin.create_user_policy(
         client_id=authz_client,
@@ -336,7 +336,7 @@ def test_get_role_policies(admin: KeycloakAdmin, realm: str, authz_client: str, 
     :param client_role: Keycloak client role id
     :type client_role: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     created_policy = admin.create_client_role_policy(
         client_id=authz_client,
@@ -366,7 +366,7 @@ def test_get_role_policy_id(admin: KeycloakAdmin, realm: str, authz_client: str,
     :param client_role: Keycloak client role id
     :type client_role: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     policy = str(uuid.uuid4())
     created_policy = admin.create_client_role_policy(
         client_id=authz_client,
@@ -385,7 +385,7 @@ def test_get_client_resource_scope_id(admin: KeycloakAdmin, realm: str, authz_cl
     :param authz_client: Keycloak client with authorization enabled
     :type authz_client: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     scope = str(uuid.uuid4())
     created_scope = admin.create_client_resource_scope(
         client_id=authz_client, payload=admin.create_resource_scope_payload(name=scope)
@@ -403,7 +403,7 @@ def test_get_client_resource_id(admin: KeycloakAdmin, realm: str, authz_client: 
     :param authz_client: Keycloak client with authorization enabled
     :type authz_client: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     resource = str(uuid.uuid4())
     created_resource = admin.create_client_authz_resource(
         client_id=authz_client, payload=admin.create_resource_payload(name=resource)
@@ -427,7 +427,7 @@ def test_get_policy_dependent_permissions(
     :param authz_policy: Keycloak policy
     :type authz_policy: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     permission = str(uuid.uuid4())
     created_permission = admin.create_scope_permission(
         client_id=authz_client,
@@ -465,7 +465,7 @@ def test_get_permissions_associated_policies(
     :param authz_policy: Keycloak policy
     :type authz_policy: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     permission = str(uuid.uuid4())
     created_permission = admin.create_scope_permission(
         client_id=authz_client,
@@ -502,7 +502,7 @@ def test_get_permissions_by_name(
     :param authz_policy: Keycloak policy
     :type authz_policy: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     permission = str(uuid.uuid4())
     created_permission = admin.create_scope_permission(
         client_id=authz_client,
@@ -537,7 +537,7 @@ def test_get_permission_id(admin: KeycloakAdmin, realm: str, authz_client: str, 
     :param authz_policy: Keycloak policy
     :type authz_policy: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     permission = str(uuid.uuid4())
     created_permission = admin.create_scope_permission(
         client_id=authz_client,
@@ -560,7 +560,7 @@ def test_get_client_roles_by_name(admin: KeycloakAdmin, realm: str, authz_client
     :param authz_client: Keycloak client with authorization enabled
     :type authz_client: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     role = str(uuid.uuid4())
     created_role = admin.create_client_role(authz_client, {"name": role, "composite": False})
     created_role = admin.get_client_role_id(client_id=authz_client, role_name=created_role)
@@ -584,7 +584,7 @@ def test_delete_assign_client_role(admin: KeycloakAdmin, realm: str, authz_clien
     :param user: Keycloak user
     :type user: str
     """
-    admin.realm_name = realm
+    admin.connection.realm_name = realm
     role = str(uuid.uuid4())
     admin.create_client_role(authz_client, {"name": role, "composite": False})
     role = admin.get_client_role(client_id=authz_client, role_name=role)

@@ -7,7 +7,7 @@ from keycloak.exceptions import KeycloakPostError
 
 def test_get_rpt(admin: KeycloakAdmin, oid_with_credentials_authz: Tuple[KeycloakOpenID, str, str]):
     oid, username, password = oid_with_credentials_authz
-    admin.realm_name = oid.realm_name
+    admin.connection.realm_name = oid.realm_name
     token = oid.token(username=username, password=password)
     access_token = token["access_token"]
     client_name = oid.client_id
