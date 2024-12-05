@@ -1,5 +1,4 @@
 import uuid
-import time
 from typing import Tuple
 from keycloak_extend import KeycloakOpenID, KeycloakAdmin
 from keycloak.exceptions import KeycloakPostError

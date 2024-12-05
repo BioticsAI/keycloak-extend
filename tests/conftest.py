@@ -2,14 +2,44 @@
 
 import os
 import uuid
+from pathlib import Path
 
 import pytest
-
-from keycloak_extend import KeycloakAdmin, KeycloakOpenID
+import requests
 from dotenv import load_dotenv
+from keycloak_extend import KeycloakAdmin, KeycloakOpenID
 
 load_dotenv()
 
+
+@pytest.fixture(scope='session')
+def docker_ip():
+    return "localhost"
+
+
+@pytest.fixture(scope='session')
+def docker_compose_file():
+    return Path(".").resolve() / "tests/docker-compose.yaml"
+
+
+@pytest.fixture(scope="session")
+def keycloak_service(docker_services):
+    """Starts Keycloak in a Docker container for integration tests."""
+    port = docker_services.port_for("keycloak", 8080)
+    health_check_port = docker_services.port_for("keycloak", 9000)
+    
+    def check():
+        try:
+            response = requests.get(f"http://localhost:{health_check_port}/health")
+        except requests.exceptions.ConnectionError:
+            return False
+        
+        return response.json()['status'] == "UP"
+
+    docker_services.wait_until_responsive(check=check, timeout=120.0, pause=5.0)
+
+    url = f"http://localhost:{port}/"
+    return url
 
 class KeycloakTestEnv(object):
     """Wrapper for test Keycloak connection configuration.
@@ -25,11 +55,11 @@ class KeycloakTestEnv(object):
     """
 
     def __init__(
-        self,
-        host: str = os.environ.get("KEYCLOAK_HOST", ""),
-        port: str = os.environ.get("KEYCLOAK_PORT", "8080"),
-        username: str = os.environ.get("KEYCLOAK_ADMIN", ""),
-        password: str = os.environ.get("KEYCLOAK_ADMIN_PASSWORD", ""),
+            self,
+            host,
+            port = 8080,
+            username: str = os.environ.get("KEYCLOAK_ADMIN", "admin"),
+            password: str = os.environ.get("KEYCLOAK_ADMIN_PASSWORD", "admin"),
     ):
         """Init method.
 
@@ -121,18 +151,17 @@ class KeycloakTestEnv(object):
 
 
 @pytest.fixture
-def env():
+def env(docker_ip):
     """Fixture for getting the test environment configuration object.
 
     :returns: Keycloak test environment object
     :rtype: KeycloakTestEnv
     """
-    return KeycloakTestEnv()
-
+    return KeycloakTestEnv(host=docker_ip)
 
 
 @pytest.fixture
-def admin(env: KeycloakTestEnv):
+def admin(env: KeycloakTestEnv, keycloak_service):
     """Fixture for initialized KeycloakAdmin class.
 
     :param env: Keycloak test environment
@@ -141,7 +170,7 @@ def admin(env: KeycloakTestEnv):
     :rtype: KeycloakAdmin
     """
     return KeycloakAdmin(
-        server_url=f"http://{env.KEYCLOAK_HOST}:{env.KEYCLOAK_PORT}",
+        server_url=keycloak_service,
         username=env.KEYCLOAK_ADMIN,
         password=env.KEYCLOAK_ADMIN_PASSWORD,
     )
@@ -451,7 +480,8 @@ def authz_resource(admin: KeycloakAdmin, realm: str, authz_client: str) -> str:
     """
     admin.connection.realm_name = realm
     resource = str(uuid.uuid4())
-    res = admin.create_client_authz_resource(client_id=authz_client, payload=admin.create_resource_payload(name=resource))
+    res = admin.create_client_authz_resource(client_id=authz_client,
+                                             payload=admin.create_resource_payload(name=resource))
     resource_id = res['_id']
     yield resource_id
 
@@ -504,7 +534,8 @@ def authz_policy(admin: KeycloakAdmin, realm: str, authz_client: str, user: str)
 
 
 @pytest.fixture
-def authz_scope_permission(admin: KeycloakAdmin, realm: str, authz_client: str, authz_scope: str, authz_policy: str) -> str:
+def authz_scope_permission(admin: KeycloakAdmin, realm: str, authz_client: str, authz_scope: str,
+                           authz_policy: str) -> str:
     """Fixture for a new random authz scope permission.
 
     :param admin: Keycloak admin

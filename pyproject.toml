@@ -42,6 +42,7 @@ darglint = ">=1.8.1"
 twine = ">=4.0.2"
 freezegun = ">=1.2.2"
 docutils = "<0.21"
+pytest-docker = "^3.1.1"
 
 [tool.poetry.extras]
 docs = [
@@ -62,3 +63,9 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 120
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: mark as unit test, runs outside docker container",
+    "integration: mark as integration test, runs in docker container",
+]
