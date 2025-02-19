@@ -12,6 +12,71 @@ from keycloak_extend import KeycloakAdmin, KeycloakOpenID
 load_dotenv()
 
 
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line(
+        "markers", "dev_only: mark test to run only in development environment"
+    )
+
+
+def pytest_addoption(parser):
+    """Add custom pytest command line options."""
+    group = parser.getgroup("plan")
+    group.addoption(
+        "--plan",
+        action="store_true",
+        default=False,
+        help="Only display the test execution plan without running tests",
+    )
+
+
+def pytest_collection_modifyitems(session, config, items):
+    """Log the test execution plan before running tests in a tree structure."""
+    from collections import defaultdict
+
+    # Create a tree structure of tests
+    test_tree = defaultdict(lambda: defaultdict(list))
+
+    # Group tests by directory
+    for item in items:
+        # Split the nodeid into parts (directory/file::test_name)
+        parts = item.nodeid.split("::")
+        file_path = parts[0]
+        test_name = parts[1]
+
+        # Split file path into directory and filename
+        path_parts = file_path.split("/")
+        if len(path_parts) > 1:
+            directory = "/".join(path_parts[:-1])
+            filename = path_parts[-1]
+        else:
+            directory = "."
+            filename = path_parts[0]
+
+        test_tree[directory][filename].append(test_name)
+
+    # Only print execution plan in plan mode
+    if config.getoption("--plan"):
+        print("\nTest Execution Plan:")
+        print("=" * 80)
+
+        total_tests = 0
+        for directory in sorted(test_tree.keys()):
+            print(f"\n-> {directory}")
+            for filename in sorted(test_tree[directory].keys()):
+                print(f"  |-> {filename}")
+                for test in sorted(test_tree[directory][filename]):
+                    print(f"      |-> {test}")
+                    total_tests += 1
+
+        print("\n" + "=" * 80)
+        print(f"Total tests to run: {total_tests}\n")
+        print("Plan mode: Skipping test execution")
+        session.items = []
+        return
+
+
 @pytest.fixture(scope='session')
 def docker_ip():
     return "localhost"

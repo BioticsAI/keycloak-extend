@@ -69,3 +69,9 @@ markers = [
     "unit: mark as unit test, runs outside docker container",
     "integration: mark as integration test, runs in docker container",
 ]
+
+[tool.coverage.run]
+omit = [
+    "./tests/conftest.py",
+    ".venv"
+]
