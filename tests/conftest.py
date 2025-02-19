@@ -8,6 +8,7 @@ import pytest
 import requests
 from dotenv import load_dotenv
 from keycloak_extend import KeycloakAdmin, KeycloakOpenID
+from requirements_mapping import get_test_requirements
 
 load_dotenv()
 
@@ -29,6 +30,35 @@ def pytest_addoption(parser):
         default=False,
         help="Only display the test execution plan without running tests",
     )
+    group.addoption(
+        "--qms",
+        action="store_true",
+        default=False,
+        help="Print test requirements for each test",
+    )
+
+
+def print_test_requirements(test_name, indent=8):
+    """Print requirements for a test in a tree format with specified indentation."""
+    requirements = get_test_requirements(test_name)
+
+    if requirements:
+        print(" " * (indent + 4) + "-> System Requirement: {}".format(
+            requirements.get("system_req", "Not specified")
+        ))
+        print(" " * (indent + 4) + "-> Subsystem Requirements: {}".format(
+            ", ".join(requirements.get("subsystem_reqs", ["Not specified"]))
+        ))
+        print(" " * (indent + 4) + "-> Validation: {}".format(
+            ", ".join(requirements.get("validation", ["Not specified"]))
+        ))
+        print(" " * (indent + 4) + "-> Verifications: {}".format(
+            ", ".join(requirements.get("verifications", ["Not specified"]))
+        ))
+        print(" " * (indent + 4) + "-> User Needs: {}".format(
+            ", ".join(requirements.get("user_needs", ["Not specified"]))
+        ))
+
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -70,11 +100,22 @@ def pytest_collection_modifyitems(session, config, items):
                     print(f"      |-> {test}")
                     total_tests += 1
 
+                    if config.getoption("--qms"):
+                        print_test_requirements(test)
+
         print("\n" + "=" * 80)
         print(f"Total tests to run: {total_tests}\n")
         print("Plan mode: Skipping test execution")
         session.items = []
         return
+
+
+# doesn't work yet
+def pytest_runtest_setup(item):
+    """Print requirements information before each test."""
+    """Print requirements information before each test."""
+    test_name = item.name
+    print_test_requirements(test_name)
 
 
 @pytest.fixture(scope='session')
