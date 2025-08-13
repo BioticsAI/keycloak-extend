@@ -1,6 +1,8 @@
 """Fixtures for tests."""
 
 import os
+import json as _json
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -9,7 +11,10 @@ import requests
 from dotenv import load_dotenv
 from keycloak_extend import KeycloakAdmin, KeycloakOpenID
 from requirements_mapping import get_test_requirements
+import logging
 
+
+logger = logging.getLogger(__file__)
 load_dotenv()
 
 
@@ -59,60 +64,75 @@ def print_test_requirements(test_name, indent=8):
             ", ".join(requirements.get("user_needs", ["Not specified"]))
         ))
 
-
-
-def pytest_collection_modifyitems(session, config, items):
+def pytest_collection_modifyitems(session, config, items,):
     """Log the test execution plan before running tests in a tree structure."""
     from collections import defaultdict
 
-    # Create a tree structure of tests
     test_tree = defaultdict(lambda: defaultdict(list))
-
-    # Group tests by directory
+    
+    # Main loop with single function call
     for item in items:
-        # Split the nodeid into parts (directory/file::test_name)
-        parts = item.nodeid.split("::")
-        file_path = parts[0]
-        test_name = parts[1]
-
-        # Split file path into directory and filename
-        path_parts = file_path.split("/")
-        if len(path_parts) > 1:
-            directory = "/".join(path_parts[:-1])
-            filename = path_parts[-1]
-        else:
-            directory = "."
-            filename = path_parts[0]
-
+        directory, filename, test_name = make_test_tree(item)
         test_tree[directory][filename].append(test_name)
 
-    # Only print execution plan in plan mode
+        # Add ultralightlabs verification attribute
+        module = item.module
+        if hasattr(module, 'ultralightlabs_verification'):
+            verification_name = getattr(module, 'ultralightlabs_verification')
+            if not verification_name.startswith('VER'):
+                logger.error(f'module {module.__qualname__} has an invalid ultralightlabs_verification attribute')
+            else:
+                item.add_marker(pytest.mark.ultralightlabs_verify_test(name=verification_name))
+                item.record_xml_attribute('name', verification_name)
+        else:
+            logger.warn(f"Module {module} doesn't have ultralightlabs_verification set.")
+
     if config.getoption("--plan"):
-        print("\nTest Execution Plan:")
-        print("=" * 80)
+        print_execution_plan(config, test_tree, session)
 
-        total_tests = 0
-        for directory in sorted(test_tree.keys()):
-            print(f"\n-> {directory}")
-            for filename in sorted(test_tree[directory].keys()):
-                print(f"  |-> {filename}")
-                for test in sorted(test_tree[directory][filename]):
-                    print(f"      |-> {test}")
-                    total_tests += 1
 
-                    if config.getoption("--qms"):
-                        print_test_requirements(test)
+def make_test_tree(item):
+    """Process individual test item and populate the test tree structure."""
+    parts = item.nodeid.split("::")
+    file_path = parts[0]
+    test_name = parts[1]
 
-        print("\n" + "=" * 80)
-        print(f"Total tests to run: {total_tests}\n")
-        print("Plan mode: Skipping test execution")
-        session.items = []
-        return
+    path_parts = file_path.split("/")
+    if len(path_parts) > 1:
+        directory = "/".join(path_parts[:-1])
+        filename = path_parts[-1]
+    else:
+        directory = "."
+        filename = path_parts[0]
+
+    return directory, filename, test_name
+
+
+def print_execution_plan(config, test_tree, session):
+    """Print the test execution plan and clear test items if in plan mode."""
+    print("\nTest Execution Plan:")
+    print("=" * 80)
+
+    total_tests = 0
+    for directory in sorted(test_tree.keys()):
+        print(f"\n-> {directory}")
+        for filename in sorted(test_tree[directory].keys()):
+            print(f"  |-> {filename}")
+            for test in sorted(test_tree[directory][filename]):
+                print(f"      |-> {test}")
+                total_tests += 1
+
+                if config.getoption("--qms"):
+                    print_test_requirements(test)
+
+    print("\n" + "=" * 80)
+    print(f"Total tests to run: {total_tests}\n")
+    print("Plan mode: Skipping test execution")
+    session.items = []
 
 
 # doesn't work yet
 def pytest_runtest_setup(item):
-    """Print requirements information before each test."""
     """Print requirements information before each test."""
     test_name = item.name
     print_test_requirements(test_name)
@@ -142,10 +162,117 @@ def keycloak_service(docker_services):
         
         return response.json()['status'] == "UP"
 
-    docker_services.wait_until_responsive(check=check, timeout=120.0, pause=5.0)
+    docker_services.wait_until_responsive(check=check, timeout=180.0, pause=5.0)
+
+    # Ensure the realm does not require HTTPS so tests can obtain tokens over HTTP
+    _configure_keycloak_ssl_and_admin(port)
 
     url = f"http://localhost:{port}/"
     return url
+
+
+def _configure_keycloak_ssl_and_admin(host_port: int) -> None:
+    """Disable SSL requirement on 'master' realm and ensure admin has an email.
+
+    We execute kcadm inside the running container corresponding to the published host_port.
+    """
+    try:
+        ps_out = subprocess.check_output(
+            [
+                "docker",
+                "ps",
+                "--format",
+                "{{.ID}} {{.Image}} {{.Names}} {{.Ports}}",
+            ],
+            text=True,
+        )
+    except Exception as e:
+        logger.error(f"Failed to list docker containers: {e}")
+        return
+
+    candidate_container = None
+    for line in ps_out.strip().splitlines():
+        parts = line.split(" ")
+        if len(parts) < 4:
+            continue
+        container_id = parts[0]
+        name = parts[2]
+        ports = " ".join(parts[3:])
+        # Match published port to container 8080
+        if f":{host_port}->8080/tcp" in ports:
+            candidate_container = name
+            break
+
+    if not candidate_container:
+        logger.error("Could not find Keycloak container for tests; skipping SSL config step.")
+        return
+
+    def _exec(cmd: list[str]) -> subprocess.CompletedProcess:
+        return subprocess.run(["docker", "exec", candidate_container, *cmd], text=True, capture_output=True)
+
+    # Authenticate kcadm (non-interactive)
+    auth_cmd = [
+        "/opt/keycloak/bin/kcadm.sh",
+        "config",
+        "credentials",
+        "--server",
+        "http://localhost:8080",
+        "--realm",
+        "master",
+        "--user",
+        os.environ.get("KEYCLOAK_ADMIN", "admin"),
+        "--password",
+        os.environ.get("KEYCLOAK_ADMIN_PASSWORD", "admin"),
+    ]
+    res = _exec(auth_cmd)
+    if res.returncode != 0:
+        logger.error(f"kcadm auth failed: {res.stderr}\n{res.stdout}")
+        return
+
+    # Disable SSL requirement
+    update_ssl_cmd = [
+        "/opt/keycloak/bin/kcadm.sh",
+        "update",
+        "realms/master",
+        "-s",
+        "sslRequired=NONE",
+    ]
+    res = _exec(update_ssl_cmd)
+    if res.returncode != 0:
+        logger.error(f"Failed to set sslRequired=NONE: {res.stderr}\n{res.stdout}")
+        # proceed; sometimes already set
+
+    # Ensure admin has an email to avoid 'Account is not fully set up'
+    get_admin_cmd = [
+        "/opt/keycloak/bin/kcadm.sh",
+        "get",
+        "users",
+        "-r",
+        "master",
+        "-q",
+        "username=admin",
+    ]
+    res = _exec(get_admin_cmd)
+    if res.returncode == 0 and res.stdout:
+        try:
+            users = _json.loads(res.stdout)
+            if isinstance(users, list) and users:
+                admin_id = users[0].get("id")
+                if admin_id:
+                    set_email_cmd = [
+                        "/opt/keycloak/bin/kcadm.sh",
+                        "update",
+                        f"users/{admin_id}",
+                        "-r",
+                        "master",
+                        "-s",
+                        "email=admin@example.com",
+                        "-s",
+                        "emailVerified=true",
+                    ]
+                    _exec(set_email_cmd)
+        except Exception:
+            pass
 
 class KeycloakTestEnv(object):
     """Wrapper for test Keycloak connection configuration.
@@ -453,7 +580,13 @@ def realm(admin: KeycloakAdmin) -> str:
     :rtype: str
     """
     realm_name = str(uuid.uuid4())
-    admin.create_realm(payload={"realm": realm_name, "enabled": True})
+    # Create realm and ensure HTTP is allowed for tests
+    admin.create_realm(payload={"realm": realm_name, "enabled": True, "sslRequired": "NONE"})
+    try:
+        # Some Keycloak versions ignore sslRequired on create; enforce again via update
+        admin.update_realm(realm_name=realm_name, payload={"sslRequired": "NONE"})
+    except Exception:
+        pass
     yield realm_name
     admin.delete_realm(realm_name=realm_name)
 
