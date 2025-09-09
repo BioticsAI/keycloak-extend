@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict, Optional
 from keycloak.exceptions import KeycloakGetError, KeycloakError, raise_error_from_response
 from keycloak import KeycloakAdmin as KAdmin
@@ -102,6 +103,7 @@ class KeycloakAdmin(KAdmin):
         client_secret_key=None,
         custom_headers=None,
         user_realm_name=None,
+        logger=None,
     ):
         super().__init__(
             server_url=server_url,
@@ -115,6 +117,11 @@ class KeycloakAdmin(KAdmin):
             user_realm_name=user_realm_name,
         )
 
+        if logger is None:
+            logger = logging.getLogger(__file__)
+
+        self.logger = logger
+
     # --- Enhanced user creation with domain error translation ---
     def create_user(self, payload, exist_ok: bool = False):  # type: ignore[override]
         try:
@@ -124,6 +131,7 @@ class KeycloakAdmin(KAdmin):
         except KeycloakError as e:
             # If an error still occurs (i.e., not a 409 that was swallowed),
             # translate it into our specific domain error and raise it.
+            self.logger.error(e)
             auth_error = parse_keycloak_error(e, payload)
             raise auth_error from e
 
