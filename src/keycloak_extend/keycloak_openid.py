@@ -54,15 +54,28 @@ class KeycloakOpenID(KOpenID):
             AccountLockedError: If account is locked due to brute force protection
             KeycloakAuthenticationError: For other authentication failures
         """
+        print(f"DEBUG: KeycloakOpenID.token called with username={username}")
         try:
             # Attempt normal authentication
             tokens = super().token(username, password, grant_type, code, redirect_uri, totp, scope, **extra)
             return tokens
-        except KeycloakAuthenticationError:
+        except KeycloakAuthenticationError as e:
+            print(f"DEBUG: KeycloakAuthenticationError caught: {e}")
             # Check if this authentication failure resulted in account lockout
             if self._keycloak_admin:
-                self._keycloak_admin.check_account_locked(username)
-
+                print(f"DEBUG: Checking account lockout status for {username}")
+                try:
+                    self._keycloak_admin.check_account_locked(username)
+                except AccountLockedError:
+                    # Account was locked due to this authentication attempt
+                    print(f"DEBUG: AccountLockedError raised, re-raising")
+                    raise
+                except Exception as lock_check_error:
+                    print(f"DEBUG: Error checking lockout status: {lock_check_error}")
+                    # If we can't check, re-raise the original authentication error
+                    raise
+            # Re-raise the original authentication error
+            print(f"DEBUG: Re-raising original KeycloakAuthenticationError")
             raise
 
     def get_rpt(

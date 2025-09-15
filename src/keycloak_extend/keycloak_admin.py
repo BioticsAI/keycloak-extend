@@ -148,16 +148,28 @@ class KeycloakAdmin(KAdmin):
         """
         try:
             user_id = self.get_user_id(username)
+            print(f"DEBUG: User ID for {username}: {user_id}")
             if user_id:
                 brute_force_status = self.get_bruteforce_detection_status(user_id)
+                print(f"DEBUG: Brute force status: {brute_force_status}")
                 if brute_force_status and brute_force_status.get('disabled', False):
+                    print(f"DEBUG: Account {username} is locked, raising AccountLockedError")
                     raise AccountLockedError(
                         username=username,
                         message=f"Account '{username}' is temporarily locked due to too many failed login attempts"
                     )
-        except Exception:
+                else:
+                    print(f"DEBUG: Account {username} is not locked")
+            else:
+                print(f"DEBUG: User {username} not found")
+        except AccountLockedError:
+            # Re-raise the AccountLockedError
+            print(f"DEBUG: Caught AccountLockedError, re-raising")
+            raise
+        except Exception as e:
             # If we can't check the brute force status, we don't want to fail the authentication
             # The regular Keycloak error handling will take care of it
+            print(f"DEBUG: Caught other exception: {type(e).__name__}: {e}")
             pass
 
     def update_client_auth_settings(self, client_id, payload):
