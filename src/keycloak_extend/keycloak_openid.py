@@ -1,7 +1,8 @@
-from keycloak.exceptions import KeycloakPostError, raise_error_from_response
+from keycloak.exceptions import KeycloakPostError, raise_error_from_response, KeycloakAuthenticationError
 from keycloak.urls_patterns import URL_TOKEN
 from keycloak import KeycloakOpenID as KOpenID
 from keycloak.uma_permissions import build_permission_param
+from .exceptions import AccountLockedError
 
 
 class KeycloakOpenID(KOpenID):
@@ -24,6 +25,45 @@ class KeycloakOpenID(KOpenID):
             custom_headers,
             proxies,
         )
+        self._keycloak_admin = None
+
+    def set_keycloak_admin(self, keycloak_admin):
+        """
+        Set the KeycloakAdmin instance to use for checking account lockout status.
+        
+        Args:
+            keycloak_admin: KeycloakAdmin instance
+        """
+        self._keycloak_admin = keycloak_admin
+
+    def token(self, username='', password='', grant_type='password', code='', redirect_uri='', totp=None, scope='openid', **extra):
+        """
+        Override token method to check for account lockout due to brute force protection.
+        
+        Args:
+            username: Username for authentication
+            password: Password for authentication
+            grant_type: Grant type (default: 'password')
+            code: Authorization code (for authorization code flow)
+            redirect_uri: Redirect URI
+            totp: Time-based one-time password
+            scope: OAuth2 scope (default: 'openid')
+            **extra: Additional parameters
+            
+        Raises:
+            AccountLockedError: If account is locked due to brute force protection
+            KeycloakAuthenticationError: For other authentication failures
+        """
+        try:
+            # Attempt normal authentication
+            tokens = super().token(username, password, grant_type, code, redirect_uri, totp, scope, **extra)
+            return tokens
+        except KeycloakAuthenticationError:
+            # Check if this authentication failure resulted in account lockout
+            if self._keycloak_admin:
+                self._keycloak_admin.check_account_locked(username)
+
+            raise
 
     def get_rpt(
         self,

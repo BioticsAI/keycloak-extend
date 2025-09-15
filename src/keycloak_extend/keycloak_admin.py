@@ -29,6 +29,7 @@ from .exceptions import (
     EmailExistsError,
     ValidationError,
     ClientConfigurationError,
+    AccountLockedError,
 )
 
 
@@ -134,6 +135,30 @@ class KeycloakAdmin(KAdmin):
             self.logger.error(e)
             auth_error = parse_keycloak_error(e, payload)
             raise auth_error from e
+
+    def check_account_locked(self, username: str) -> None:
+        """
+        Check if an account is locked due to brute force protection and raise AccountLockedError if so.
+
+        Args:
+            username: The username to check
+            
+        Raises:
+            AccountLockedError: If the account is locked due to brute force protection
+        """
+        try:
+            user_id = self.get_user_id(username)
+            if user_id:
+                brute_force_status = self.get_bruteforce_detection_status(user_id)
+                if brute_force_status and brute_force_status.get('disabled', False):
+                    raise AccountLockedError(
+                        username=username,
+                        message=f"Account '{username}' is temporarily locked due to too many failed login attempts"
+                    )
+        except Exception:
+            # If we can't check the brute force status, we don't want to fail the authentication
+            # The regular Keycloak error handling will take care of it
+            pass
 
     def update_client_auth_settings(self, client_id, payload):
         params_path = {"realm-name": self.connection.realm_name, "id": client_id}

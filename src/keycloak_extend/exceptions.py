@@ -47,3 +47,12 @@ class ClientConfigurationError(AuthError):
     """Raised for 401/403 errors indicating a client-side configuration issue."""
 
     pass
+
+
+class AccountLockedError(AuthError):
+    """Raised when an account is temporarily locked due to brute force protection."""
+
+    def __init__(self, username, message="Account is temporarily locked due to too many failed login attempts", original_error=None):
+        self.username = username
+        self.error_code = "account_locked"
+        super().__init__(message, original_error)
