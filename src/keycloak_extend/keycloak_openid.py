@@ -1,4 +1,4 @@
-from keycloak.exceptions import KeycloakPostError, raise_error_from_response, KeycloakAuthenticationError
+from keycloak.exceptions import KeycloakPostError, raise_error_from_response, KeycloakAuthenticationError, KeycloakOperationError
 from keycloak.urls_patterns import URL_TOKEN
 from keycloak import KeycloakOpenID as KOpenID
 from keycloak.uma_permissions import build_permission_param
@@ -61,8 +61,8 @@ class KeycloakOpenID(KOpenID):
             # Attempt normal authentication
             tokens = super().token(username, password, grant_type, code, redirect_uri, totp, scope, **extra)
             return tokens
-        except KeycloakAuthenticationError as e:
-            print(f"DEBUG: KeycloakAuthenticationError caught: {e}")
+        except (KeycloakAuthenticationError, KeycloakPostError) as e:
+            print(f"DEBUG: KeycloakAuthenticationError or KeycloakPostError caught: {e}")
             # Check if this is the specific "Account is not fully set up" error
             error_description = str(e)
             if "Account is not fully set up" in error_description:
@@ -88,7 +88,7 @@ class KeycloakOpenID(KOpenID):
                     # If we can't check, re-raise the original authentication error
                     raise
             # Re-raise the original authentication error
-            print(f"DEBUG: Re-raising original KeycloakAuthenticationError")
+            print(f"DEBUG: Re-raising original KeycloakAuthenticationError or KeycloakPostError")
             raise
 
     def get_rpt(
