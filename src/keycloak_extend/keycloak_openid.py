@@ -2,7 +2,7 @@ from keycloak.exceptions import KeycloakPostError, raise_error_from_response, Ke
 from keycloak.urls_patterns import URL_TOKEN
 from keycloak import KeycloakOpenID as KOpenID
 from keycloak.uma_permissions import build_permission_param
-from .exceptions import AccountLockedError
+from .exceptions import AccountLockedError, ActionRequired
 
 
 class KeycloakOpenID(KOpenID):
@@ -38,7 +38,8 @@ class KeycloakOpenID(KOpenID):
 
     def token(self, username='', password='', grant_type='password', code='', redirect_uri='', totp=None, scope='openid', **extra):
         """
-        Override token method to check for account lockout due to brute force protection.
+        Override token method to check for account lockout due to brute force protection
+        and detect when password is correct but needs updating.
         
         Args:
             username: Username for authentication
@@ -52,6 +53,7 @@ class KeycloakOpenID(KOpenID):
             
         Raises:
             AccountLockedError: If account is locked due to brute force protection
+            ActionRequired: If account is authenticated but requires password update
             KeycloakAuthenticationError: For other authentication failures
         """
         print(f"DEBUG: KeycloakOpenID.token called with username={username}")
@@ -61,6 +63,17 @@ class KeycloakOpenID(KOpenID):
             return tokens
         except KeycloakAuthenticationError as e:
             print(f"DEBUG: KeycloakAuthenticationError caught: {e}")
+            # Check if this is the specific "Account is not fully set up" error
+            error_description = str(e)
+            if "Account is not fully set up" in error_description:
+                # This indicates the password is correct but user has required actions
+                print(f"DEBUG: Detected 'Account is not fully set up' error, raising ActionRequired")
+                raise ActionRequired(
+                    action="update_password",
+                    message="Password authentication successful but update required",
+                    original_error=e
+                )
+            
             # Check if this authentication failure resulted in account lockout
             if self._keycloak_admin:
                 print(f"DEBUG: Checking account lockout status for {username}")

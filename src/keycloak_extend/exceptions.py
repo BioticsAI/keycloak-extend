@@ -56,3 +56,13 @@ class AccountLockedError(AuthError):
         self.username = username
         self.error_code = "account_locked"
         super().__init__(message, original_error)
+
+
+class ActionRequired(AuthError):
+    """Raised when user authentication is successful but requires additional action."""
+
+    def __init__(self, action, message=None, original_error=None):
+        self.action = action
+        if message is None:
+            message = f"Action required: {action}"
+        super().__init__(message, original_error)

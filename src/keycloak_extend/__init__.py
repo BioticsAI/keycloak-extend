@@ -7,6 +7,8 @@ from .exceptions import (
     EmailExistsError,
     ValidationError,
     ClientConfigurationError,
+    AccountLockedError,
+    ActionRequired,
 )
 
 __all__ = [
@@ -18,4 +20,6 @@ __all__ = [
     "EmailExistsError",
     "ValidationError",
     "ClientConfigurationError",
+    "AccountLockedError",
+    "ActionRequired",
 ]
