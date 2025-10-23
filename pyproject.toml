@@ -24,7 +24,7 @@ async-property = ">=0.2.2"
 python-keycloak = "^4.6.2"
 
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 tox = ">=4.0.0"
 pytest = ">=7.1.2"
 pytest-cov = ">=3.0.0"
