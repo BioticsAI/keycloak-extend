@@ -36,7 +36,6 @@ jaraco.context==6.0.1
 jaraco.functools==4.1.0
 Jinja2==3.1.4
 jwcrypto==1.5.6
--e git+ssh://git@github.com/BioticsAI/keycloak-extend.git@40530c40bd0e41362a7d8f0b18809ead2049b47e#egg=keycloak_extend
 keyring==25.5.0
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2

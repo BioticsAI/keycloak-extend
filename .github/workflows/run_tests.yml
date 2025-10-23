@@ -11,13 +11,25 @@ jobs:
     name: CI Build
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
-  
-    - name: Run tests and collect coverage
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Install dependencies
+      run: poetry install --with dev
+
+    - name: Run tests
       env:
         KEYCLOAK_ADMIN : admin 
         KEYCLOAK_ADMIN_PASSWORD : admin 
-        KEYCLOAK_HOST : localhost 
-        KEYCLOAK_PORT : 8080
-      run:  ./run_tests.sh
+      run: poetry run pytest

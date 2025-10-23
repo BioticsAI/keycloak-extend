@@ -1,5 +1,7 @@
 import json
-from keycloak.exceptions import KeycloakGetError, raise_error_from_response
+import logging
+from typing import Any, Dict, Optional
+from keycloak.exceptions import KeycloakGetError, KeycloakPutError, KeycloakError, raise_error_from_response
 from keycloak import KeycloakAdmin as KAdmin
 from keycloak.urls_patterns import (
     URL_ADMIN_CLIENT_ROLES,
@@ -20,6 +22,87 @@ from keycloak_extend.url_patterns import (
     URL_ADMIN_USER_POLICY,
 )
 
+from .exceptions import (
+    AuthError,
+    UserExistsError,
+    UsernameExistsError,
+    EmailExistsError,
+    ValidationError,
+    ClientConfigurationError,
+    AccountLockedError,
+    CantReusePassword,
+)
+
+
+def parse_keycloak_error(keycloak_error: KeycloakError, user_payload=None) -> AuthError:
+    """
+    Translates a raw KeycloakError into a specific, structured AuthError.
+    
+    This function centralizes all error parsing logic.
+    """
+    if user_payload is None:
+        user_payload = {}
+        
+    response_code = keycloak_error.response_code
+    response_body = keycloak_error.response_body
+    
+    data = {}
+    error_message = keycloak_error.error_message or str(keycloak_error)
+    error_code = None
+    
+    if response_body is not None:
+        try:
+            data = json.loads(response_body)
+            error_message = data.get('errorMessage') or data.get('error_description') or error_message
+            error_code = data.get('error')
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+
+    # 409 Conflict -> UserExistsError
+    if response_code == 409:
+        msg_lower = error_message.lower()
+        if 'username' in msg_lower:
+            return UsernameExistsError(
+                username=user_payload.get('username'),
+                message=error_message,
+                original_error=keycloak_error
+            )
+        if 'email' in msg_lower:
+            return EmailExistsError(
+                email=user_payload.get('email'),
+                message=error_message,
+                original_error=keycloak_error
+            )
+        # Fallback for generic 409
+        return UserExistsError(error_message, original_error=keycloak_error)
+
+    # 400 Bad Request -> ValidationError, CantReusePassword are two cases of this if
+    if response_code == 400:
+        # Check for password history violation
+        if error_code == "invalidPasswordHistoryMessage":
+            return CantReusePassword(original_error=keycloak_error)
+            
+        params = data.get('params')
+        return ValidationError(
+            message=error_message,
+            field=data.get('field'),
+            error_code=error_code if error_code else None,
+            params=params if params else None,
+            original_error=keycloak_error
+        )
+
+    # 401/403 -> Client Configuration Error
+    if response_code in [401, 403]:
+        return ClientConfigurationError(
+            f"Client configuration or permission error: {error_message}",
+            original_error=keycloak_error
+        )
+
+    # Default to a generic AuthError for anything else
+    return AuthError(
+        f"An unexpected Keycloak error occurred (Status: {response_code}): {error_message}",
+        original_error=keycloak_error
+    )
 
 class KeycloakAdmin(KAdmin):
     def __init__(
@@ -33,6 +116,7 @@ class KeycloakAdmin(KAdmin):
         client_secret_key=None,
         custom_headers=None,
         user_realm_name=None,
+        logger=None,
     ):
         super().__init__(
             server_url=server_url,
@@ -45,6 +129,63 @@ class KeycloakAdmin(KAdmin):
             custom_headers=custom_headers,
             user_realm_name=user_realm_name,
         )
+
+        self.logger = logger or logging.getLogger(__file__)
+
+    def set_user_password(self, user_id, password, temporary, *args):
+        try:
+            return super().set_user_password(user_id, password, temporary)
+        except KeycloakPutError as e:
+            self.logger.error(e)
+            auth_error = parse_keycloak_error(e, {})
+            raise auth_error from e 
+    
+    def create_user(self, payload, exist_ok: bool = False):  # type: ignore[override]
+        try:
+            # The parent will swallow the 409 error and return None if exist_ok is True.
+            return super().create_user(payload, exist_ok=exist_ok)
+        except KeycloakError as e:
+            # If an error still occurs (i.e., not a 409 that was swallowed),
+            # translate it into our specific domain error and raise it.
+            self.logger.error(e)
+            auth_error = parse_keycloak_error(e, payload)
+            raise auth_error from e
+
+    def check_account_locked(self, username: str) -> None:
+        """
+        Check if an account is locked due to brute force protection and raise AccountLockedError if so.
+
+        Args:
+            username: The username to check
+            
+        Raises:
+            AccountLockedError: If the account is locked due to brute force protection
+        """
+        try:
+            user_id = self.get_user_id(username)
+            self.logger.debug(f"User ID for {username}: {user_id}")
+            if user_id:
+                brute_force_status = self.get_bruteforce_detection_status(user_id)
+                self.logger.debug(f"Brute force status: {brute_force_status}")
+                if brute_force_status and brute_force_status.get('disabled', False):
+                    self.logger.debug(f"Account {username} is locked, raising AccountLockedError")
+                    raise AccountLockedError(
+                        username=username,
+                        message=f"Account '{username}' is temporarily locked due to too many failed login attempts"
+                    )
+                else:
+                    self.logger.debug(f"Account {username} is not locked")
+            else:
+                self.logger.debug(f"User {username} not found")
+        except AccountLockedError:
+            # Re-raise the AccountLockedError
+            self.logger.debug(f"Caught AccountLockedError, re-raising")
+            raise
+        except Exception as e:
+            # If we can't check the brute force status, we don't want to fail the authentication
+            # The regular Keycloak error handling will take care of it
+            self.logger.debug(f"Caught other exception: {type(e).__name__}: {e}")
+            pass
 
     def update_client_auth_settings(self, client_id, payload):
         params_path = {"realm-name": self.connection.realm_name, "id": client_id}
