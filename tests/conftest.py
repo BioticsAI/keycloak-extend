@@ -10,7 +10,6 @@ import pytest
 import requests
 from dotenv import load_dotenv
 from keycloak_extend import KeycloakAdmin, KeycloakOpenID
-from requirements_mapping import get_test_requirements
 import logging
 
 
@@ -35,34 +34,7 @@ def pytest_addoption(parser):
         default=False,
         help="Only display the test execution plan without running tests",
     )
-    group.addoption(
-        "--qms",
-        action="store_true",
-        default=False,
-        help="Print test requirements for each test",
-    )
 
-
-def print_test_requirements(test_name, indent=8):
-    """Print requirements for a test in a tree format with specified indentation."""
-    requirements = get_test_requirements(test_name)
-
-    if requirements:
-        print(" " * (indent + 4) + "-> System Requirement: {}".format(
-            requirements.get("system_req", "Not specified")
-        ))
-        print(" " * (indent + 4) + "-> Subsystem Requirements: {}".format(
-            ", ".join(requirements.get("subsystem_reqs", ["Not specified"]))
-        ))
-        print(" " * (indent + 4) + "-> Validation: {}".format(
-            ", ".join(requirements.get("validation", ["Not specified"]))
-        ))
-        print(" " * (indent + 4) + "-> Verifications: {}".format(
-            ", ".join(requirements.get("verifications", ["Not specified"]))
-        ))
-        print(" " * (indent + 4) + "-> User Needs: {}".format(
-            ", ".join(requirements.get("user_needs", ["Not specified"]))
-        ))
 
 def pytest_collection_modifyitems(session, config, items,):
     """Log the test execution plan before running tests in a tree structure."""
@@ -122,20 +94,10 @@ def print_execution_plan(config, test_tree, session):
                 print(f"      |-> {test}")
                 total_tests += 1
 
-                if config.getoption("--qms"):
-                    print_test_requirements(test)
-
     print("\n" + "=" * 80)
     print(f"Total tests to run: {total_tests}\n")
     print("Plan mode: Skipping test execution")
     session.items = []
-
-
-# doesn't work yet
-def pytest_runtest_setup(item):
-    """Print requirements information before each test."""
-    test_name = item.name
-    print_test_requirements(test_name)
 
 
 @pytest.fixture(scope='session')
@@ -580,11 +542,27 @@ def realm(admin: KeycloakAdmin) -> str:
     :rtype: str
     """
     realm_name = str(uuid.uuid4())
-    # Create realm and ensure HTTP is allowed for tests
-    admin.create_realm(payload={"realm": realm_name, "enabled": True, "sslRequired": "NONE"})
+    # Create realm with HTTP allowed, brute force protection, and password history enabled for tests
+    admin.create_realm(payload={
+        "realm": realm_name, 
+        "enabled": True, 
+        "sslRequired": "NONE",
+        "bruteForceProtected": True,
+        "failureFactor": 2,  # Lock after 2 failed attempts
+        "maxFailureWaitSeconds": 30,
+        "minimumQuickLoginWaitSeconds": 1,
+        "passwordPolicy": "length(8) and passwordHistory(2)"
+    })
     try:
-        # Some Keycloak versions ignore sslRequired on create; enforce again via update
-        admin.update_realm(realm_name=realm_name, payload={"sslRequired": "NONE"})
+        # Some Keycloak versions ignore settings on create; enforce again via update
+        admin.update_realm(realm_name=realm_name, payload={
+            "sslRequired": "NONE",
+            "bruteForceProtected": True,
+            "failureFactor": 2,
+            "maxFailureWaitSeconds": 30,
+            "minimumQuickLoginWaitSeconds": 1,
+            "passwordPolicy": "length(8) and passwordHistory(2)"
+        })
     except Exception:
         pass
     yield realm_name

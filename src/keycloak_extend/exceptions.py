@@ -18,8 +18,7 @@ class UsernameExistsError(UserExistsError):
 
     def __init__(self, username, message="User already exists", original_error=None):
         self.username = username
-        self.error_code = "username_exists"
-        super().__init__(f"{message}: username '{username}'", original_error)
+        super().__init__(f"{message}: username '{username}'", "username_exists", original_error)
 
 
 class EmailExistsError(UserExistsError):
@@ -27,8 +26,7 @@ class EmailExistsError(UserExistsError):
 
     def __init__(self, email, message="User already exists", original_error=None):
         self.email = email
-        self.error_code = "email_exists"
-        super().__init__(f"{message}: email '{email}'", original_error)
+        super().__init__(f"{message}: email '{email}'", "email_exists", original_error)
 
 
 class ValidationError(AuthError):
@@ -37,9 +35,9 @@ class ValidationError(AuthError):
     def __init__(
         self, message, field=None, error_code=None, params=None, original_error=None
     ):
-        super().__init__(message, original_error)
+        super().__init__(message, error_code, original_error)
+        self.message = message
         self.field = field
-        self.error_code = error_code
         self.params = params
 
 
@@ -52,10 +50,11 @@ class ClientConfigurationError(AuthError):
 class AccountLockedError(AuthError):
     """Raised when an account is temporarily locked due to brute force protection."""
 
-    def __init__(self, username, message="Account is temporarily locked due to too many failed login attempts", original_error=None):
+    def __init__(self, username, message=None, original_error=None):
         self.username = username
-        self.error_code = "account_locked"
-        super().__init__(message, original_error)
+        if message is None:
+            message = f"Account is temporarily locked due to too many failed login attempts: {username}"
+        super().__init__(message, "account_locked", original_error)
 
 
 class ActionRequired(AuthError):
@@ -65,4 +64,8 @@ class ActionRequired(AuthError):
         self.action = action
         if message is None:
             message = f"Action required: {action}"
-        super().__init__(message, original_error)
+        super().__init__(message, None, original_error)
+
+class CantReusePassword(AuthError):
+    def __init__(self, original_error=None):
+        super().__init__("Can't reuse a password from the last set 5 passwords", "cant_reuse_password", original_error)

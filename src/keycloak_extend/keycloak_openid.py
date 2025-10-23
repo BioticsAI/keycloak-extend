@@ -1,3 +1,4 @@
+import logging
 from keycloak.exceptions import KeycloakPostError, raise_error_from_response, KeycloakAuthenticationError, KeycloakOperationError
 from keycloak.urls_patterns import URL_TOKEN
 from keycloak import KeycloakOpenID as KOpenID
@@ -15,6 +16,7 @@ class KeycloakOpenID(KOpenID):
         verify=True,
         custom_headers=None,
         proxies=None,
+        logger=None,
     ):
         super().__init__(
             server_url,
@@ -26,6 +28,7 @@ class KeycloakOpenID(KOpenID):
             proxies,
         )
         self._keycloak_admin = None
+        self.logger = logger or logging.getLogger(__file__)
 
     def set_keycloak_admin(self, keycloak_admin):
         """
@@ -56,18 +59,18 @@ class KeycloakOpenID(KOpenID):
             ActionRequired: If account is authenticated but requires password update
             KeycloakAuthenticationError: For other authentication failures
         """
-        print(f"DEBUG: KeycloakOpenID.token called with username={username}")
+        self.logger.debug(f"KeycloakOpenID.token called with username={username}")
         try:
             # Attempt normal authentication
             tokens = super().token(username, password, grant_type, code, redirect_uri, totp, scope, **extra)
             return tokens
         except (KeycloakAuthenticationError, KeycloakPostError) as e:
-            print(f"DEBUG: KeycloakAuthenticationError or KeycloakPostError caught: {e}")
+            self.logger.debug(f"KeycloakAuthenticationError or KeycloakPostError caught: {e}")
             # Check if this is the specific "Account is not fully set up" error
             error_description = str(e)
             if "Account is not fully set up" in error_description:
                 # This indicates the password is correct but user has required actions
-                print(f"DEBUG: Detected 'Account is not fully set up' error, raising ActionRequired")
+                self.logger.debug(f"Detected 'Account is not fully set up' error, raising ActionRequired")
                 raise ActionRequired(
                     action="update_password",
                     message="Password authentication successful but update required",
@@ -76,19 +79,19 @@ class KeycloakOpenID(KOpenID):
             
             # Check if this authentication failure resulted in account lockout
             if self._keycloak_admin:
-                print(f"DEBUG: Checking account lockout status for {username}")
+                self.logger.debug(f"Checking account lockout status for {username}")
                 try:
                     self._keycloak_admin.check_account_locked(username)
                 except AccountLockedError:
                     # Account was locked due to this authentication attempt
-                    print(f"DEBUG: AccountLockedError raised, re-raising")
+                    self.logger.debug(f"AccountLockedError raised, re-raising")
                     raise
                 except Exception as lock_check_error:
-                    print(f"DEBUG: Error checking lockout status: {lock_check_error}")
+                    self.logger.debug(f"Error checking lockout status: {lock_check_error}")
                     # If we can't check, re-raise the original authentication error
                     raise
             # Re-raise the original authentication error
-            print(f"DEBUG: Re-raising original KeycloakAuthenticationError or KeycloakPostError")
+            self.logger.debug(f"Re-raising original KeycloakAuthenticationError or KeycloakPostError")
             raise
 
     def get_rpt(

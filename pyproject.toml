@@ -65,6 +65,7 @@ build-backend = "poetry.core.masonry.api"
 line-length = 120
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 markers = [
     "unit: mark as unit test, runs outside docker container",
     "integration: mark as integration test, runs in docker container",
@@ -73,5 +74,4 @@ markers = [
 [tool.coverage.run]
 omit = [
     "./tests/conftest.py",
-    ".venv"
 ]
